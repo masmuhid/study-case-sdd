@@ -1,0 +1,152 @@
+1. STRUKTUR DATABASE :
+
+
+-- Tabel barang
+CREATE TABLE barang (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nama VARCHAR(255) NOT NULL,
+    kategori VARCHAR(255),
+    jumlah_barang INT,
+    keterangan TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabel pembeli
+CREATE TABLE pembeli (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nama VARCHAR(255) NOT NULL,
+    nomor_identitas VARCHAR(50) UNIQUE NOT NULL,
+    jenis_kelamin CHAR(1) CHECK (jenis_kelamin IN ('L', 'P')),
+    alamat TEXT,
+    nomor_hp VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabel toko
+CREATE TABLE toko (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nama_toko VARCHAR(255) NOT NULL,
+    alamat_toko TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabel penjualan dengan partisi
+CREATE TABLE penjualan (
+    id INT AUTO_INCREMENT,
+    barang_id INT NOT NULL,
+    pembeli_id INT NOT NULL,
+    jumlah_beli INT NOT NULL,
+    tanggal_beli DATETIME NOT NULL,
+    toko_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, toko_id),
+    INDEX idx_barang (barang_id),
+    INDEX idx_pembeli (pembeli_id),
+    INDEX idx_toko (toko_id),
+    INDEX idx_tanggal (tanggal_beli)
+) 
+PARTITION BY RANGE (toko_id) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN (300),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE)
+);
+
+
+2. SKEMA DATABASE :
+
+Dengan jumlah data penjualan yang mencapai 50 juta, penting untuk mengoptimalkan performa.
+cara yang bisa digunakan yaitu pengindeksan dan partisi.
+
+# indexing pada tabel penjualan
+Indeks pada kolom barang_id, pembeli_id, dan toko_id, tanggal_beli untuk mempercepat pencarian dan filter.
+
+# partisi
+Partisi tabel Penjualan berdasarkan lokasi toko atau tanggal transaksi dapat membantu mengelola data dalam skala besar.
+
+partisi based on lokasi toko (toko_id) :
+
+-- Tabel penjualan dengan partisi by toko_id
+CREATE TABLE penjualan (
+    id INT AUTO_INCREMENT,
+    barang_id INT NOT NULL,
+    pembeli_id INT NOT NULL,
+    jumlah_beli INT NOT NULL,
+    tanggal_beli DATETIME NOT NULL,
+    toko_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, toko_id),
+    INDEX idx_barang (barang_id),
+    INDEX idx_pembeli (pembeli_id),
+    INDEX idx_toko (toko_id),
+    INDEX idx_tanggal (tanggal_beli)
+) 
+PARTITION BY RANGE (toko_id) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN (300),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE)
+);
+
+
+partisi based on tanggal transaksi (tanggal_beli) :
+
+-- Tabel penjualan dengan partisi by tanggal_beli
+CREATE TABLE penjualan (
+    id INT AUTO_INCREMENT,
+    barang_id INT NOT NULL,
+    pembeli_id INT NOT NULL,
+    jumlah_beli INT NOT NULL,
+    tanggal_beli DATETIME NOT NULL,
+    toko_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, tanggal_beli),
+    INDEX idx_barang (barang_id),
+    INDEX idx_pembeli (pembeli_id),
+    INDEX idx_toko (toko_id),
+    INDEX idx_tanggal (tanggal_beli)
+) 
+PARTITION BY RANGE (tanggal_beli) (
+    PARTITION p0 VALUES LESS THAN (2022),
+    PARTITION p1 VALUES LESS THAN (2023),
+    PARTITION p2 VALUES LESS THAN (2024),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE)
+);
+
+
+
+# alternatif lain
+alternatif lain yang bisa digunakan yaitu membuat tabel terpisah untuk setiap tahun 
+dan partisi masing-masing tabel berdasarkan lokasi toko (toko_id).
+
+
+-- Tabel penjualan untuk tahun 2022
+CREATE TABLE penjualan_2022 (
+    id INT NOT NULL AUTO_INCREMENT,
+    barang_id INT NOT NULL,
+    pembeli_id INT NOT NULL,
+    jumlah_beli INT NOT NULL,
+    tanggal_beli DATETIME NOT NULL,
+    toko_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, toko_id),
+    INDEX idx_barang (barang_id),
+    INDEX idx_pembeli (pembeli_id),
+    INDEX idx_toko (toko_id),
+    INDEX idx_tanggal (tanggal_beli)
+)
+PARTITION BY RANGE (toko_id) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN (300),
+    PARTITION p3 VALUES LESS THAN (MAXVALUE)
+);
+
+-- tabel untuk tahun-tahun lainnya sesuai kebutuhan
